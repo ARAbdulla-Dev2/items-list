@@ -406,6 +406,63 @@
     </div>
 
     <script>
+        const DB_NAME = 'MonoCatalogDB';
+        const STORE_NAME = 'catalogStore';
+        const DATA_KEY = 'dataset';
+
+        // Initialize IndexedDB connection
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = function(e) {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+                request.onsuccess = function(e) {
+                    resolve(e.target.result);
+                };
+                request.onerror = function(e) {
+                    reject(e.target.error);
+                };
+            });
+        }
+
+        // Fetch saved catalog array from IndexedDB
+        function getCatalogData() {
+            return initDB().then(db => {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(STORE_NAME, 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.get(DATA_KEY);
+                    request.onsuccess = function() {
+                        resolve(request.result || []);
+                    };
+                    request.onerror = function() {
+                        reject(request.error);
+                    };
+                });
+            });
+        }
+
+        // Write full catalog array to IndexedDB
+        function saveCatalogData(data) {
+            return initDB().then(db => {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction(STORE_NAME, 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.put(data, DATA_KEY);
+                    request.onsuccess = function() {
+                        resolve();
+                    };
+                    request.onerror = function() {
+                        reject(request.error);
+                    };
+                });
+            });
+        }
+
         // Client global states array
         let products = [];
         let uploadedImagesBase64 = []; // Holds preview images uploading array temporarily
@@ -413,28 +470,36 @@
 
         // Start initialization sequence
         window.onload = function() {
-            loadFromLocalStorage();
-            renderApp();
+            getCatalogData().then(data => {
+                products = data;
+                
+                // Automatic backward compatibility migration from localStorage
+                if (products.length === 0) {
+                    try {
+                        const legacyData = localStorage.getItem('mono_catalog_dataset');
+                        if (legacyData) {
+                            products = JSON.parse(legacyData);
+                            saveToDatabase(); // Port directly into IndexedDB
+                            localStorage.removeItem('mono_catalog_dataset'); // Clean up old data store
+                        }
+                    } catch (err) {
+                        console.warn("Legacy localStorage read skipped or failed", err);
+                    }
+                }
+                renderApp();
+            }).catch(err => {
+                showToast("Failed initializing local database", "error");
+                renderApp();
+            });
         }
 
-        // Read Local Storage details
-        function loadFromLocalStorage() {
-            try {
-                const data = localStorage.getItem('mono_catalog_dataset');
-                products = data ? JSON.parse(data) : [];
-            } catch (err) {
-                showToast("Failed loading cached data store", "error");
-                products = [];
-            }
-        }
-
-        // Save Local Storage details
-        function saveToLocalStorage() {
-            try {
-                localStorage.setItem('mono_catalog_dataset', JSON.stringify(products));
-            } catch (err) {
-                showToast("Failed to write persistence database", "error");
-            }
+        // Save global list updates to database
+        function saveToDatabase() {
+            saveCatalogData(products).then(() => {
+                // Saved successfully
+            }).catch(err => {
+                showToast("Failed to write to local database", "error");
+            });
         }
 
         // Open statistics modal panel and perform dynamic calculations
@@ -724,7 +789,7 @@
                 showToast("New product cataloged", "success");
             }
 
-            saveToLocalStorage();
+            saveToDatabase();
             renderApp();
             closeModal();
         }
@@ -905,7 +970,7 @@
             const item = products.find(p => p.randomStringId === uuid);
             products = products.filter(p => p.randomStringId !== uuid);
             
-            saveToLocalStorage();
+            saveToDatabase();
             renderApp();
             
             if (item) {
@@ -1021,7 +1086,7 @@
 
                     // Save if changes successfully applied
                     if (addedCount > 0) {
-                        saveToLocalStorage();
+                        saveToDatabase();
                         renderApp();
                     }
 
