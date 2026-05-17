@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalog - Minimalist Product Suite</title>
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom scrollbar for horizontal image sliders */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden selection:bg-stone-800 selection:text-white">
+
+    <!-- Main App Container: Scaled & Centered to look perfect on Mobile screens -->
+    <div class="min-h-screen max-w-md mx-auto bg-black flex flex-col relative border-x border-stone-900 shadow-2xl">
+        
+        <!-- Header -->
+        <header class="p-5 pb-3 border-b border-stone-900 sticky top-0 bg-black/95 backdrop-blur-md z-30">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight uppercase">Catalog</h1>
+                    <p class="text-xs text-stone-500 font-medium" id="item-count">0 products loaded</p>
+                </div>
+                
+                <!-- Quick Backup Controls -->
+                <div class="flex items-center gap-2">
+                    <button onclick="openInfoModal()" class="p-2 hover:bg-stone-900 rounded-full transition-colors duration-150 text-stone-400 hover:text-white" title="View Summary Metrics">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
+
+                    <button onclick="triggerJSONImport()" class="p-2 hover:bg-stone-900 rounded-full transition-colors duration-150 text-stone-400 hover:text-white" title="Import backup">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                    </button>
+                    <input type="file" id="json-file-input" class="hidden" accept=".json" onchange="handleJSONImport(event)" />
+
+                    <button onclick="exportJSON()" class="p-2 hover:bg-stone-900 rounded-full transition-colors duration-150 text-stone-400 hover:text-white" title="Export backup">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Clean Search pill -->
+            <div class="relative w-full">
+                <input 
+                    type="text" 
+                    id="search" 
+                    oninput="performSearch()"
+                    class="bg-stone-900 text-stone-100 border-none rounded-full py-2.5 pl-11 pr-5 placeholder:text-stone-600 text-sm w-full outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                    placeholder="Search name, description, tags, ID..." 
+                />
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-stone-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable list content area -->
+        <main class="flex-grow p-4 pb-28">
+            <!-- Empty state element -->
+            <div id="empty-state" class="flex flex-col items-center justify-center py-24 text-center">
+                <div class="h-12 w-12 rounded-full border border-dashed border-stone-800 flex items-center justify-center text-stone-600 mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-semibold text-stone-400">Your Catalog is Empty</h3>
+                <p class="text-xs text-stone-600 max-w-xs mt-1 px-4">Start organizing your inventory by adding your first product using the button below.</p>
+            </div>
+
+            <!-- List Grid -->
+            <div id="product-list" class="space-y-3">
+                <!-- Products loaded dynamically here -->
+            </div>
+        </main>
+
+        <!-- Persistent Bottom Action Bar -->
+        <div class="fixed bottom-0 max-w-md w-full mx-auto bg-black/90 backdrop-blur-md border-t border-stone-900 p-4 flex justify-between items-center z-25">
+            <span class="text-[10px] font-mono tracking-widest text-stone-600 uppercase">SYS_V2.6.0_MONO</span>
+            <button onclick="openAddModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-black hover:bg-stone-200 text-xs font-bold rounded-full shadow-md transition-all duration-150 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                Add New Product
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Full-Screen Product Immersive Detail Overlay -->
+    <div id="detail-overlay" class="fixed inset-0 bg-black z-50 flex flex-col justify-start transform translate-x-full transition-transform duration-300 ease-out">
+        <!-- Sticky Header in detail overlay -->
+        <div class="h-16 border-b border-stone-900 flex items-center justify-between px-4 sticky top-0 bg-black/95 backdrop-blur-md z-10">
+            <button onclick="closeDetail()" class="flex items-center gap-1.5 px-3 py-1.5 hover:bg-stone-900 rounded-full text-xs font-medium text-stone-400 hover:text-white transition duration-150 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+            </button>
+            <span class="text-[10px] font-mono tracking-wider text-stone-500 uppercase">Product File</span>
+            <div class="flex items-center gap-1.5" id="detail-action-header-buttons">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+        
+        <!-- Detailed content inside overlay -->
+        <div class="flex-grow overflow-y-auto p-5 pb-10 max-w-md mx-auto w-full">
+            <!-- Image Carousel Area -->
+            <div id="detail-image-sec" class="mb-6 relative hidden">
+                <div id="detail-carousel" class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar rounded-2xl gap-2 w-full aspect-video bg-stone-950 border border-stone-900">
+                    <!-- Images appended here -->
+                </div>
+                <div id="detail-carousel-indicators" class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 bg-black/60 px-2 py-1 rounded-full border border-stone-800/80">
+                    <!-- Dots -->
+                </div>
+            </div>
+
+            <!-- Empty Image state detail page fallback -->
+            <div id="detail-no-image-fallback" class="w-full aspect-video bg-stone-950 border border-stone-900 rounded-2xl flex flex-col items-center justify-center text-stone-700 mb-6">
+                <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-xs">No media uploaded</span>
+            </div>
+
+            <!-- Header block info -->
+            <div class="space-y-2 mb-6">
+                <div class="flex items-center gap-2">
+                    <span id="detail-id-badge" class="px-2 py-0.5 bg-stone-900 border border-stone-800 rounded-full text-[10px] font-mono text-stone-300"></span>
+                    <span id="detail-random-id" class="text-[10px] font-mono text-stone-600"></span>
+                </div>
+                <h2 id="detail-title" class="text-2xl font-bold tracking-tight text-white leading-snug"></h2>
+                
+                <!-- Stock metrics inline -->
+                <div class="flex items-center gap-1.5 text-xs text-stone-400 pt-1">
+                    <span id="detail-stock-indicator" class="h-2 w-2 rounded-full"></span>
+                    <span id="detail-qty"></span>
+                </div>
+            </div>
+
+            <!-- Details & Financial metrics grid block -->
+            <div class="grid grid-cols-2 gap-3 border-y border-stone-900 py-4 mb-6">
+                <div>
+                    <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-widest">Rate</span>
+                    <p id="detail-price" class="text-lg font-bold text-white mt-1"></p>
+                </div>
+                <div>
+                    <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-widest">Calculated value</span>
+                    <p id="detail-value" class="text-lg font-bold text-stone-400 mt-1"></p>
+                </div>
+            </div>
+
+            <!-- Product details tags array container -->
+            <div class="mb-6">
+                <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-widest block mb-2">Filters Tags</span>
+                <div id="detail-tags-container" class="flex flex-wrap gap-1.5">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Rich multi-line description text box -->
+            <div class="mb-6">
+                <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-widest block mb-2">Reference Specs</span>
+                <div id="detail-desc" class="p-4 bg-stone-950 border border-stone-900 rounded-2xl text-xs text-stone-300 leading-relaxed whitespace-pre-wrap"></div>
+            </div>
+
+            <!-- Market integrations actions links -->
+            <div class="pt-2">
+                <span class="text-[10px] font-semibold text-stone-500 uppercase tracking-widest block mb-3">Linked Outlets</span>
+                <div class="grid grid-cols-2 gap-2" id="detail-linkout-actions">
+                    <!-- Populated dynamically with SVG icons -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input Form modal drawer -->
+    <div id="modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-end justify-center opacity-0 pointer-events-none transition-opacity duration-200">
+        <div class="bg-stone-950 border border-stone-900 rounded-t-[2rem] w-full max-w-md overflow-hidden transform translate-y-full transition-transform duration-200 max-h-[92vh] flex flex-col">
+            
+            <!-- Modal navigation action bar -->
+            <div class="px-5 py-4 border-b border-stone-900 flex items-center justify-between bg-stone-950 sticky top-0">
+                <h3 id="modal-title" class="text-sm font-bold tracking-wider uppercase text-stone-200">Add Product</h3>
+                <button onclick="closeModal()" class="p-1.5 hover:bg-stone-900 rounded-full text-stone-400 hover:text-white transition duration-150 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body Form -->
+            <form id="product-form" onsubmit="handleFormSubmit(event)" class="p-5 overflow-y-auto space-y-4 flex-grow no-scrollbar">
+                <input type="hidden" id="editing-uuid" value="" />
+
+                <!-- Grid wrapper ID & Stock count -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="form-custom-id" class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">User Code (ID) *</label>
+                        <input 
+                            type="number" 
+                            id="form-custom-id" 
+                            required 
+                            min="1" 
+                            class="w-full bg-stone-900 border border-none rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                            placeholder="e.g. 1" 
+                        />
+                    </div>
+                    <div>
+                        <label for="form-qty" class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">Quantity *</label>
+                        <input 
+                            type="number" 
+                            id="form-qty" 
+                            required 
+                            min="0" 
+                            class="w-full bg-stone-900 border border-none rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                            placeholder="e.g. 1" 
+                        />
+                    </div>
+                </div>
+
+                <!-- Input Field: Product Label name -->
+                <div>
+                    <label for="form-name" class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">Label / Product Name *</label>
+                    <input 
+                        type="text" 
+                        id="form-name" 
+                        required 
+                        class="w-full bg-stone-900 border border-none rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                        placeholder="e.g. Wrench set" 
+                    />
+                </div>
+
+                <!-- Input Field: Price values -->
+                <div>
+                    <label for="form-price" class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">Unit Price (Format as needed) *</label>
+                    <input 
+                        type="text" 
+                        id="form-price" 
+                        required 
+                        class="w-full bg-stone-900 border border-none rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                        placeholder="e.g. 10,000" 
+                    />
+                </div>
+
+                <!-- Input Field: Image file loader to Base64 conversions -->
+                <div>
+                    <label class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">Upload Images (Base64 saved local)</label>
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col items-center justify-center w-full h-24 border border-dashed border-stone-800 rounded-xl cursor-pointer hover:bg-stone-900/40 transition">
+                            <div class="flex flex-col items-center justify-center pt-3 pb-3">
+                                <svg class="w-6 h-6 text-stone-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <p class="text-[10px] text-stone-500 font-medium">Click to select files</p>
+                            </div>
+                            <input type="file" id="form-images-input" multiple accept="image/*" class="hidden" onchange="processFormImages(event)" />
+                        </label>
+                    </div>
+                    
+                    <!-- Previews block -->
+                    <div id="form-images-preview-row" class="flex gap-2 overflow-x-auto no-scrollbar pt-2">
+                        <!-- Tiny preview containers loads here dynamically -->
+                    </div>
+                </div>
+
+                <!-- Input Field: Commas separated Tagging values -->
+                <div>
+                    <label for="form-tags" class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">Search tags (Comma-separated)</label>
+                    <input 
+                        type="text" 
+                        id="form-tags" 
+                        class="w-full bg-stone-900 border border-none rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                        placeholder="e.g. tools, japan, auto" 
+                    />
+                </div>
+
+                <!-- Textarea input field: Multi-lines Description specs -->
+                <div>
+                    <label for="form-desc" class="block text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">Description (Line breaks allowed) *</label>
+                    <textarea 
+                        id="form-desc" 
+                        required 
+                        rows="3" 
+                        class="w-full bg-stone-900 border border-none rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition resize-none" 
+                        placeholder="Imported from Japan&#10;Brand New"
+                    ></textarea>
+                </div>
+
+                <!-- Optional links integrations fields -->
+                <div class="border-t border-stone-900 pt-3 space-y-3">
+                    <span class="text-[10px] font-semibold text-stone-600 uppercase tracking-widest block">Reference Links</span>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label for="form-link-fb" class="block text-[9px] font-bold text-stone-600 uppercase tracking-widest mb-1">Facebook listing</label>
+                            <input 
+                                type="url" 
+                                id="form-link-fb" 
+                                class="w-full bg-stone-900 border border-none rounded-xl p-2.5 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                                placeholder="https://..." 
+                            />
+                        </div>
+                        <div>
+                            <label for="form-link-ikman" class="block text-[9px] font-bold text-stone-600 uppercase tracking-widest mb-1">Ikman listing</label>
+                            <input 
+                                type="url" 
+                                id="form-link-ikman" 
+                                class="w-full bg-stone-900 border border-none rounded-xl p-2.5 text-xs text-white outline-none focus:ring-1 focus:ring-stone-600 transition" 
+                                placeholder="https://..." 
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Button submission box footer sticky bottom modal -->
+                <div class="border-t border-stone-900 pt-4 flex gap-2">
+                    <button type="button" onclick="closeModal()" class="w-1/2 py-3 bg-stone-900 text-stone-400 text-xs font-semibold rounded-full hover:bg-stone-850 cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-1/2 py-3 bg-white text-black text-xs font-bold rounded-full hover:bg-stone-200 cursor-pointer">
+                        Save Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Elegant System Notification Toasts -->
+    <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-55 flex flex-col gap-2 w-full max-w-xs pointer-events-none">
+        <!-- Dynamically appended toast items -->
+    </div>
+
+    <!-- Elegant Info stats modal wrapper -->
+    <div id="info-modal" class="fixed inset-0 z-55 bg-black/90 flex items-center justify-center p-5 opacity-0 pointer-events-none transition-opacity duration-200">
+        <div class="bg-stone-950 border border-stone-900 rounded-[2rem] max-w-xs w-full p-6 text-center shadow-xl transform scale-95 transition-transform duration-200">
+            <div class="h-10 w-10 bg-stone-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
+                </svg>
+            </div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-4">Inventory Summary</h4>
+            
+            <div class="space-y-3 text-left mb-6">
+                <div class="flex justify-between border-b border-stone-900 pb-2">
+                    <span class="text-[10px] text-stone-500 uppercase tracking-wider">Unique Items</span>
+                    <span id="info-unique-items" class="text-xs font-mono font-bold text-white">0</span>
+                </div>
+                <div class="flex justify-between border-b border-stone-900 pb-2">
+                    <span class="text-[10px] text-stone-500 uppercase tracking-wider">Total Stock Units</span>
+                    <span id="info-total-stock" class="text-xs font-mono font-bold text-white">0</span>
+                </div>
+                <div class="flex justify-between border-b border-stone-900 pb-2">
+                    <span class="text-[10px] text-stone-500 uppercase tracking-wider">Total Value</span>
+                    <span id="info-total-valuation" class="text-xs font-mono font-bold text-white">0</span>
+                </div>
+            </div>
+
+            <button onclick="closeInfoModal()" class="w-full py-2.5 bg-white text-black rounded-full text-xs font-bold hover:bg-stone-200 cursor-pointer">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Elegant Deletion confirmation modal wrapper -->
+    <div id="confirm-modal" class="fixed inset-0 z-55 bg-black/90 flex items-center justify-center p-5 opacity-0 pointer-events-none transition-opacity duration-200">
+        <div class="bg-stone-950 border border-stone-900 rounded-[2rem] max-w-xs w-full p-6 text-center shadow-xl transform scale-95 transition-transform duration-200">
+            <div class="h-10 w-10 bg-stone-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-2">Delete product file?</h4>
+            <p class="text-stone-500 text-xs mb-5">Are you sure you want to proceed? This removal is permanent.</p>
+            <div class="flex gap-2">
+                <button onclick="closeConfirmModal()" class="w-1/2 py-2.5 bg-stone-900 text-stone-400 rounded-full text-xs font-semibold hover:bg-stone-850 cursor-pointer">
+                    Cancel
+                </button>
+                <button id="confirm-delete-btn" class="w-1/2 py-2.5 bg-white text-black rounded-full text-xs font-bold hover:bg-stone-200 cursor-pointer">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Client global states array
+        let products = [];
+        let uploadedImagesBase64 = []; // Holds preview images uploading array temporarily
+        let deleteActionTargetUuid = null;
+
+        // Start initialization sequence
+        window.onload = function() {
+            loadFromLocalStorage();
+            renderApp();
+        }
+
+        // Read Local Storage details
+        function loadFromLocalStorage() {
+            try {
+                const data = localStorage.getItem('mono_catalog_dataset');
+                products = data ? JSON.parse(data) : [];
+            } catch (err) {
+                showToast("Failed loading cached data store", "error");
+                products = [];
+            }
+        }
+
+        // Save Local Storage details
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('mono_catalog_dataset', JSON.stringify(products));
+            } catch (err) {
+                showToast("Failed to write persistence database", "error");
+            }
+        }
+
+        // Open statistics modal panel and perform dynamic calculations
+        function openInfoModal() {
+            const uniqueCount = products.length;
+            let totalStock = 0;
+            let totalValuation = 0;
+
+            products.forEach(p => {
+                const qty = parseInt(p.productQuantity) || 0;
+                // Strips commas and formats price value safely to calculate total value 
+                const price = parseFloat(p.productPrice.replace(/,/g, '')) || 0;
+                
+                totalStock += qty;
+                totalValuation += (qty * price);
+            });
+
+            document.getElementById('info-unique-items').innerText = uniqueCount;
+            document.getElementById('info-total-stock').innerText = totalStock;
+            document.getElementById('info-total-valuation').innerText = totalValuation > 0 
+                ? totalValuation.toLocaleString('en-US') 
+                : '0';
+
+            const modal = document.getElementById('info-modal');
+            const inner = modal.querySelector('div');
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            inner.classList.remove('scale-95');
+            inner.classList.add('scale-100');
+        }
+
+        function closeInfoModal() {
+            const modal = document.getElementById('info-modal');
+            const inner = modal.querySelector('div');
+
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            inner.classList.remove('scale-100');
+            inner.classList.add('scale-95');
+        }
+
+        // Global updates router
+        function renderApp() {
+            const countLabel = document.getElementById('item-count');
+            countLabel.innerText = `${products.length} products listed`;
+            performSearch();
+        }
+
+        // Search engine & Dynamic renderer
+        function performSearch() {
+            const query = document.getElementById('search').value.toLowerCase().trim();
+            const listContainer = document.getElementById('product-list');
+            const emptyState = document.getElementById('empty-state');
+
+            // Filters criteria
+            const filtered = products.filter(p => {
+                return p.id.toString().includes(query) ||
+                       p.randomStringId.toLowerCase().includes(query) ||
+                       p.productName.toLowerCase().includes(query) ||
+                       p.productDescription.toLowerCase().includes(query) ||
+                       p.productTags.some(t => t.toLowerCase().includes(query));
+            });
+
+            // Sorting - Numeric ID ordered ascending
+            filtered.sort((a, b) => a.id - b.id);
+
+            // Display updates
+            if (filtered.length === 0) {
+                listContainer.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                let htmlContent = '';
+                filtered.forEach(p => {
+                    const isOutOfStock = parseInt(p.productQuantity) === 0;
+                    
+                    // Tags layout conversion
+                    const tagElements = p.productTags.map(t => `
+                        <span class="text-[9px] font-mono tracking-wider bg-stone-900 border border-stone-850 text-stone-400 px-2 py-0.5 rounded-full capitalize">#${t}</span>
+                    `).join('');
+
+                    // Carousel icon if images exists
+                    const mediaBadge = p.images && p.images.length > 0 
+                        ? `<div class="absolute top-3 right-3 bg-black/80 border border-stone-800 text-[9px] font-semibold text-stone-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                             <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                             </svg>
+                             ${p.images.length}
+                           </div>`
+                        : '';
+
+                    // First loaded image thumb representation
+                    const hasCover = p.images && p.images.length > 0;
+                    const cardCoverContainer = hasCover 
+                        ? `<div class="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 bg-stone-950 border border-stone-900 relative">
+                               <img src="${p.images[0]}" class="w-full h-full object-cover" />
+                           </div>`
+                        : `<div class="w-16 h-16 rounded-2xl flex-shrink-0 bg-stone-950 border border-stone-900 flex items-center justify-center text-stone-800">
+                               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                               </svg>
+                           </div>`;
+
+                    htmlContent += `
+                        <div onclick="openDetail('${p.randomStringId}')" class="bg-stone-950 border border-stone-900 hover:border-stone-800 rounded-[2rem] p-4 transition relative flex items-start gap-4 cursor-pointer">
+                            ${mediaBadge}
+                            ${cardCoverContainer}
+                            
+                            <div class="flex-grow min-w-0">
+                                <div class="flex items-center gap-1.5 mb-1">
+                                    <span class="text-[9px] font-mono font-bold text-stone-400 bg-stone-900 border border-stone-850 px-2 py-0.5 rounded-full">ID: ${p.id}</span>
+                                    <span class="text-[8px] font-mono text-stone-600 truncate">${p.randomStringId}</span>
+                                </div>
+                                <h3 class="font-bold text-sm text-white tracking-tight truncate">${p.productName}</h3>
+                                
+                                <div class="flex items-center gap-2 mt-1 mb-2">
+                                    <span class="h-1.5 w-1.5 rounded-full ${isOutOfStock ? 'bg-stone-700' : 'bg-white'}"></span>
+                                    <span class="text-[10px] ${isOutOfStock ? 'text-stone-600' : 'text-stone-400'} font-medium">
+                                        ${isOutOfStock ? 'No Stock' : p.productQuantity + ' Available'}
+                                    </span>
+                                    <span class="text-[10px] text-stone-500 font-bold ml-auto">${p.productPrice}</span>
+                                </div>
+                                
+                                <div class="flex flex-wrap gap-1">${tagElements}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                listContainer.innerHTML = htmlContent;
+            }
+        }
+
+        // Open Modal dialog
+        function openAddModal() {
+            document.getElementById('modal-title').innerText = "Add New Product";
+            document.getElementById('editing-uuid').value = "";
+            document.getElementById('product-form').reset();
+            uploadedImagesBase64 = [];
+            renderImagePreviews();
+
+            // Set consecutive default logical ID numbers
+            let maxId = 0;
+            products.forEach(p => { if (p.id > maxId) maxId = p.id; });
+            document.getElementById('form-custom-id').value = maxId + 1;
+            document.getElementById('form-qty').value = 1;
+
+            toggleModal(true);
+        }
+
+        function openEditModal(uuid) {
+            const product = products.find(p => p.randomStringId === uuid);
+            if (!product) return;
+
+            document.getElementById('modal-title').innerText = "Edit Product Files";
+            document.getElementById('editing-uuid').value = uuid;
+
+            document.getElementById('form-custom-id').value = product.id;
+            document.getElementById('form-qty').value = product.productQuantity;
+            document.getElementById('form-name').value = product.productName;
+            document.getElementById('form-price').value = product.productPrice;
+            document.getElementById('form-tags').value = product.productTags.join(', ');
+            document.getElementById('form-desc').value = product.productDescription;
+            document.getElementById('form-link-fb').value = product.productFacebookLink || '';
+            document.getElementById('form-link-ikman').value = product.productIkmanLink || '';
+            
+            uploadedImagesBase64 = product.images ? [...product.images] : [];
+            renderImagePreviews();
+
+            toggleModal(true);
+        }
+
+        function closeModal() {
+            toggleModal(false);
+        }
+
+        function toggleModal(show) {
+            const modal = document.getElementById('modal');
+            const inner = modal.querySelector('div');
+            if (show) {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                inner.classList.remove('translate-y-full');
+                inner.classList.add('translate-y-0');
+            } else {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                inner.classList.remove('translate-y-0');
+                inner.classList.add('translate-y-full');
+            }
+        }
+
+        // Process select file images
+        function processFormImages(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImagesBase64.push(e.target.result);
+                    renderImagePreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+            // Reset input
+            event.target.value = '';
+        }
+
+        // Remove designated files base64
+        function removeUploadedImage(index) {
+            uploadedImagesBase64.splice(index, 1);
+            renderImagePreviews();
+        }
+
+        // Renders visual uploaded thumbnails list inside the form
+        function renderImagePreviews() {
+            const container = document.getElementById('form-images-preview-row');
+            container.innerHTML = '';
+            
+            uploadedImagesBase64.forEach((b64, idx) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = "relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-stone-800 bg-stone-900";
+                wrapper.innerHTML = `
+                    <img src="${b64}" class="w-full h-full object-cover" />
+                    <button type="button" onclick="removeUploadedImage(${idx})" class="absolute top-1 right-1 bg-black/80 hover:bg-stone-950 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">×</button>
+                `;
+                container.appendChild(wrapper);
+            });
+        }
+
+        // Handle database updates
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const uuid = document.getElementById('editing-uuid').value;
+            const customId = parseInt(document.getElementById('form-custom-id').value);
+            const qty = parseInt(document.getElementById('form-qty').value);
+            const name = document.getElementById('form-name').value.trim();
+            const price = document.getElementById('form-price').value.trim();
+            const desc = document.getElementById('form-desc').value.trim();
+            const tags = document.getElementById('form-tags').value
+                .split(',')
+                .map(t => t.trim().toLowerCase())
+                .filter(t => t.length > 0);
+            
+            const linkFb = document.getElementById('form-link-fb').value.trim();
+            const linkIkman = document.getElementById('form-link-ikman').value.trim();
+
+            // Duplicate customId ID codes evaluation
+            const duplicateCheck = products.find(p => p.id === customId && p.randomStringId !== uuid);
+            if (duplicateCheck) {
+                showToast(`Code ${customId} belongs to "${duplicateCheck.productName}". Select different code.`, "error");
+                return;
+            }
+
+            if (uuid) {
+                // Modifying records
+                const idx = products.findIndex(p => p.randomStringId === uuid);
+                if (idx !== -1) {
+                    products[idx].id = customId;
+                    products[idx].productQuantity = qty;
+                    products[idx].productName = name;
+                    products[idx].productPrice = price;
+                    products[idx].productTags = tags;
+                    products[idx].productDescription = desc;
+                    products[idx].productFacebookLink = linkFb;
+                    products[idx].productIkmanLink = linkIkman;
+                    products[idx].images = [...uploadedImagesBase64];
+
+                    showToast("Specifications updated", "success");
+                }
+            } else {
+                // Inserting unique listing
+                const newProduct = {
+                    randomStringId: "PRD-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
+                    id: customId,
+                    productName: name,
+                    productQuantity: qty,
+                    productPrice: price,
+                    productTags: tags,
+                    productDescription: desc,
+                    productFacebookLink: linkFb,
+                    productIkmanLink: linkIkman,
+                    images: [...uploadedImagesBase64]
+                };
+                products.push(newProduct);
+                showToast("New product cataloged", "success");
+            }
+
+            saveToLocalStorage();
+            renderApp();
+            closeModal();
+        }
+
+        // Display overlays configuration details
+        function openDetail(uuid) {
+            const p = products.find(prod => prod.randomStringId === uuid);
+            if (!p) return;
+
+            const isOutOfStock = parseInt(p.productQuantity) === 0;
+
+            // Detail view actions header options
+            document.getElementById('detail-action-header-buttons').innerHTML = `
+                <button onclick="closeDetail(); openEditModal('${p.randomStringId}')" class="px-3.5 py-1.5 text-[10px] font-bold bg-stone-900 border border-stone-850 hover:bg-stone-800 rounded-full transition cursor-pointer text-stone-300">
+                    Edit
+                </button>
+                <button onclick="closeDetail(); requestDeleteProduct('${p.randomStringId}')" class="px-3.5 py-1.5 text-[10px] font-bold bg-stone-950 border border-stone-900 hover:bg-stone-900 rounded-full text-stone-500 hover:text-white transition cursor-pointer">
+                    Delete
+                </button>
+            `;
+
+            // Setup swipe image sliders
+            const imageSec = document.getElementById('detail-image-sec');
+            const fallbackSec = document.getElementById('detail-no-image-fallback');
+            const carousel = document.getElementById('detail-carousel');
+            const indicators = document.getElementById('detail-carousel-indicators');
+
+            carousel.innerHTML = '';
+            indicators.innerHTML = '';
+
+            if (p.images && p.images.length > 0) {
+                imageSec.classList.remove('hidden');
+                fallbackSec.classList.add('hidden');
+
+                p.images.forEach((b64, idx) => {
+                    // Create carousel wrapper element slide
+                    const imgDiv = document.createElement('div');
+                    imgDiv.className = "snap-start w-full h-full flex-shrink-0 flex items-center justify-center bg-black relative";
+                    imgDiv.innerHTML = `<img src="${b64}" class="w-full h-full object-contain" />`;
+                    carousel.appendChild(imgDiv);
+
+                    // Indicators tracker node
+                    const dot = document.createElement('span');
+                    dot.className = `w-1.5 h-1.5 rounded-full transition-all duration-150 ${idx === 0 ? 'bg-white w-3' : 'bg-stone-700'}`;
+                    dot.id = `indicator-dot-${idx}`;
+                    indicators.appendChild(dot);
+                });
+
+                // Attach dynamically listening elements update to swipe indicators tracker dots
+                carousel.onscroll = function() {
+                    const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+                    p.images.forEach((_, idx) => {
+                        const targetDot = document.getElementById(`indicator-dot-${idx}`);
+                        if (targetDot) {
+                            if (idx === index) {
+                                targetDot.className = "w-1.5 h-1.5 rounded-full bg-white w-3 transition-all duration-150";
+                            } else {
+                                targetDot.className = "w-1.5 h-1.5 rounded-full bg-stone-700 transition-all duration-150";
+                            }
+                        }
+                    });
+                };
+
+            } else {
+                imageSec.classList.add('hidden');
+                fallbackSec.classList.remove('hidden');
+            }
+
+            // Bind values
+            document.getElementById('detail-id-badge').innerText = `ID: ${p.id}`;
+            document.getElementById('detail-random-id').innerText = p.randomStringId;
+            document.getElementById('detail-title').innerText = p.productName;
+
+            const indicator = document.getElementById('detail-stock-indicator');
+            const stockQty = document.getElementById('detail-qty');
+            if (isOutOfStock) {
+                indicator.className = "h-2 w-2 rounded-full bg-stone-700";
+                stockQty.innerText = "Stock Status: Depleted";
+            } else {
+                indicator.className = "h-2 w-2 rounded-full bg-white";
+                stockQty.innerText = `Stock Status: ${p.productQuantity} units in stock`;
+            }
+
+            document.getElementById('detail-price').innerText = `${p.productPrice}`;
+            
+            // Safe total mathematical analysis multiplication calculations
+            const numericPrice = parseFloat(p.productPrice.replace(/,/g, '')) || 0;
+            const numericQty = parseInt(p.productQuantity) || 0;
+            const finalValCalculated = numericPrice * numericQty;
+            document.getElementById('detail-value').innerText = finalValCalculated > 0 
+                ? `${finalValCalculated.toLocaleString('en-US')}` 
+                : 'N/A';
+
+            // Detailed search queries parameters tags rendering
+            const tagsBox = document.getElementById('detail-tags-container');
+            if (p.productTags && p.productTags.length > 0) {
+                tagsBox.innerHTML = p.productTags.map(t => `
+                    <span class="px-3 py-1 bg-stone-900 border border-stone-850 text-stone-400 text-xs font-mono rounded-full capitalize">#${t}</span>
+                `).join('');
+            } else {
+                tagsBox.innerHTML = `<span class="text-[10px] text-stone-600 font-medium">No tagging parameters defined</span>`;
+            }
+
+            // Description mapping details
+            document.getElementById('detail-desc').innerText = p.productDescription;
+
+            // Direct link actions rendering with clean formal monochrome styling
+            const linksBox = document.getElementById('detail-linkout-actions');
+            let linksContent = '';
+
+            if (p.productFacebookLink) {
+                linksContent += `
+                    <a href="${p.productFacebookLink}" target="_blank" class="flex items-center justify-center gap-2 p-3 bg-stone-950 hover:bg-stone-900 border border-stone-900 rounded-xl transition duration-150 text-stone-400 hover:text-white">
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <span class="text-xs font-bold uppercase tracking-wider">Facebook</span>
+                    </a>
+                `;
+            }
+
+            if (p.productIkmanLink) {
+                linksContent += `
+                    <a href="${p.productIkmanLink}" target="_blank" class="flex items-center justify-center gap-2 p-3 bg-stone-950 hover:bg-stone-900 border border-stone-900 rounded-xl transition duration-150 text-stone-400 hover:text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        <span class="text-xs font-bold uppercase tracking-wider">Ikman</span>
+                    </a>
+                `;
+            }
+
+            if (!p.productFacebookLink && !p.productIkmanLink) {
+                linksContent = `<div class="col-span-2 text-center py-2 text-stone-600 text-xs font-medium">No active connections configured</div>`;
+            }
+
+            linksBox.innerHTML = linksContent;
+
+            // Slide in overlay details panel
+            const detailOverlay = document.getElementById('detail-overlay');
+            detailOverlay.classList.remove('translate-x-full');
+            detailOverlay.classList.add('translate-x-0');
+        }
+
+        function closeDetail() {
+            const detailOverlay = document.getElementById('detail-overlay');
+            detailOverlay.classList.remove('translate-x-0');
+            detailOverlay.classList.add('translate-x-full');
+        }
+
+        // Custom elegant modal confirmations routines
+        function requestDeleteProduct(uuid) {
+            deleteActionTargetUuid = uuid;
+            const modal = document.getElementById('confirm-modal');
+            const inner = modal.querySelector('div');
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            inner.classList.remove('scale-95');
+            inner.classList.add('scale-100');
+
+            document.getElementById('confirm-delete-btn').onclick = executeDeleteProduct;
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirm-modal');
+            const inner = modal.querySelector('div');
+
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            inner.classList.remove('scale-100');
+            inner.classList.add('scale-95');
+            deleteActionTargetUuid = null;
+        }
+
+        function executeDeleteProduct() {
+            if (!deleteActionTargetUuid) return;
+            const uuid = deleteActionTargetUuid;
+
+            const item = products.find(p => p.randomStringId === uuid);
+            products = products.filter(p => p.randomStringId !== uuid);
+            
+            saveToLocalStorage();
+            renderApp();
+            
+            if (item) {
+                showToast(`Removed "${item.productName}" successfully`, "info");
+            }
+            closeConfirmModal();
+        }
+
+        // Write dataset output as JSON file downloads
+        function exportJSON() {
+            if (products.length === 0) {
+                showToast("No database records found to export", "info");
+                return;
+            }
+            try {
+                const jsonStr = JSON.stringify(products, null, 4);
+                const blob = new Blob([jsonStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                
+                const dateString = new Date().toISOString().split('T')[0];
+                const tempLink = document.createElement('a');
+                tempLink.href = url;
+                tempLink.download = `catalog_backup_${dateString}.json`;
+                
+                document.body.appendChild(tempLink);
+                tempLink.click();
+                document.body.removeChild(tempLink);
+                
+                URL.revokeObjectURL(url);
+                showToast("Catalog backup file generated", "success");
+            } catch (err) {
+                showToast("Error packing system database", "error");
+            }
+        }
+
+        function triggerJSONImport() {
+            document.getElementById('json-file-input').click();
+        }
+
+        // Import file backup validations checks
+        function handleJSONImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsedData = JSON.parse(e.target.result);
+                    
+                    if (!Array.isArray(parsedData)) {
+                        showToast("Error: Upload must be a valid array.", "error");
+                        return;
+                    }
+
+                    let addedCount = 0;
+                    let skippedCount = 0;
+
+                    parsedData.forEach(importedItem => {
+                        // Strict properties validations mapping
+                        const hasRequired = importedItem.hasOwnProperty('productName') && 
+                                            importedItem.hasOwnProperty('productPrice') && 
+                                            importedItem.hasOwnProperty('productQuantity');
+                        
+                        if (!hasRequired) {
+                            skippedCount++;
+                            return;
+                        }
+
+                        // Generate optional identifier tokens if missing
+                        if (!importedItem.randomStringId) {
+                            importedItem.randomStringId = "PRD-" + Math.random().toString(36).substring(2, 9).toUpperCase();
+                        }
+                        if (importedItem.id === undefined || importedItem.id === null) {
+                            let maxId = 0;
+                            products.forEach(p => { if (p.id > maxId) maxId = p.id; });
+                            importedItem.id = maxId + 1;
+                        } else {
+                            importedItem.id = parseInt(importedItem.id);
+                        }
+
+                        // Duplicates assessment criteria matching ID codes
+                        const isDuplicate = products.some(existing => 
+                            (existing.randomStringId === importedItem.randomStringId) || 
+                            (existing.id === importedItem.id)
+                        );
+
+                        if (isDuplicate) {
+                            skippedCount++;
+                        } else {
+                            // Structuring import tags cleanly
+                            const formattedTags = Array.isArray(importedItem.productTags) 
+                                ? importedItem.productTags.map(t => t.trim().toLowerCase())
+                                : [];
+
+                            // Verify image attachments array safely
+                            const importedImages = Array.isArray(importedItem.images) ? importedItem.images : [];
+
+                            products.push({
+                                randomStringId: importedItem.randomStringId,
+                                id: importedItem.id,
+                                productName: String(importedItem.productName),
+                                productQuantity: parseInt(importedItem.productQuantity) || 0,
+                                productDescription: String(importedItem.productDescription || ''),
+                                productPrice: String(importedItem.productPrice || '0'),
+                                productTags: formattedTags,
+                                productFacebookLink: String(importedItem.productFacebookLink || ''),
+                                productIkmanLink: String(importedItem.productIkmanLink || ''),
+                                images: importedImages
+                            });
+                            addedCount++;
+                        }
+                    });
+
+                    // Save if changes successfully applied
+                    if (addedCount > 0) {
+                        saveToLocalStorage();
+                        renderApp();
+                    }
+
+                    if (addedCount > 0 && skippedCount > 0) {
+                        showToast(`Imported ${addedCount} products. Skipped ${skippedCount} duplicates.`, "info");
+                    } else if (addedCount > 0) {
+                        showToast(`Successfully imported ${addedCount} entries.`, "success");
+                    } else {
+                        showToast(`No new products loaded. Skipped ${skippedCount} duplicates.`, "info");
+                    }
+
+                } catch (parseError) {
+                    showToast("Corrupted file format parsing data", "error");
+                }
+                document.getElementById('json-file-input').value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // Custom notification toaster displays handler
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let statusClasses = 'bg-stone-900 border-stone-800 text-stone-200';
+            let iconElement = '<svg class="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+
+            if (type === 'success') {
+                statusClasses = 'bg-stone-950 border-white text-white';
+                iconElement = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4"/></svg>';
+            } else if (type === 'error') {
+                statusClasses = 'bg-stone-900 border-stone-800 text-stone-400';
+                iconElement = '<svg class="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+            }
+
+            toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-full border shadow-xl transform translate-y-2 opacity-0 transition duration-300 pointer-events-auto ${statusClasses}`;
+            toast.innerHTML = `
+                <div class="flex-shrink-0">${iconElement}</div>
+                <div class="text-[10px] font-bold tracking-wide uppercase">${message}</div>
+            `;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
